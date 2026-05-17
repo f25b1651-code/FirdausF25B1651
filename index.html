@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Food Safety Derivative Lab | SFM Malaysia</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root { --primary: #c62828; --accent: #1565c0; --bg: #f5f5f5; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg); margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        h1 { color: var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
+        .formula-box { background: #ffebee; padding: 15px; border-left: 5px solid var(--primary); margin: 20px 0; font-size: 1.1em; }
+        .chart-container { position: relative; height: 400px; width: 100%; margin-top: 20px; }
+        .info-panel { margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; min-height: 80px; transition: all 0.3s; }
+        .highlight { font-weight: bold; color: var(--primary); }
+        footer { margin-top: 30px; font-size: 0.8em; color: #666; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Thermal Processing: Microbial Decay</h1>
+    <p><strong>Scenario:</strong> Monitoring the reduction of <em>Salmonella</em> during the heat treatment of locally produced bottled chili sauce. We use the derivative to find the instantaneous "kill rate" to prevent over-cooking.</p>
+
+    <div class="formula-box">
+        <strong>Microbial Count:</strong> $$f(t) = N_0 \cdot e^{-kt}$$
+        <strong>Reduction Rate (Derivative):</strong> $$f'(t) = -k \cdot N_0 \cdot e^{-kt}$$
+        <small>Where $N_0=1,000,000$ CFU/g (Initial Load), $k=0.15$ (Rate Constant), and $t$ is time in minutes.</small>
+    </div>
+
+    <div class="chart-container">
+        <canvas id="decayChart"></canvas>
+    </div>
+
+    <div id="resultPanel" class="info-panel">
+        <em>Click on the curve to calculate the instantaneous reduction rate (CFU per minute) at that timestamp.</em>
+    </div>
+
+    <footer>
+        Source: <strong>Standards Malaysia (MS 1480:2019 Food Safety) / MyFoodDBC</strong>
+    </footer>
+</div>
+
+<script>
+    const ctx = document.getElementById('decayChart').getContext('2d');
+    
+    // Parameters
+    const N0 = 1000000; 
+    const k = 0.15;
+
+    const time = Array.from({length: 61}, (_, i) => i);
+    const microbialData = time.map(t => N0 * Math.exp(-k * t));
+
+    const decayChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: time,
+            datasets: [{
+                label: 'Microbial Load (CFU/g)',
+                data: microbialData,
+                borderColor: '#c62828',
+                backgroundColor: 'rgba(198, 40, 40, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 2,
+                pointHitRadius: 15
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { title: { display: true, text: 'Processing Time (Minutes)' } },
+                y: { 
+                    type: 'logarithmic',
+                    title: { display: true, text: 'CFU/g (Log Scale)' },
+                    min: 1
+                }
+            },
+            onClick: (e) => {
+                const points = decayChart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, Array);
+                if (points.length) {
+                    const t = points[0].index;
+                    const f_t = Math.round(microbialData[t]);
+                    
+                    // Derivative calculation: f'(t)
+                    const rate = -k * N0 * Math.exp(-k * t);
+                    
+                    updatePanel(t, f_t, Math.abs(rate).toFixed(2));
+                }
+            }
+        }
+    });
+
+    function updatePanel(t, count, rate) {
+        const panel = document.getElementById('resultPanel');
+        let layman = "";
+        
+        if (t < 10) {
+            layman = "High efficiency! The heat is rapidly neutralizing the highest concentration of microbes.";
+        } else if (count < 100) {
+            layman = "Safety threshold reached. Continuing further may degrade food texture and nutrients (Vitamin C loss).";
+        } else {
+            layman = "The rate is slowing down as the remaining population becomes harder to reach/neutralize.";
+        }
+
+        panel.innerHTML = `
+            <strong>Analysis at Minute ${t}:</strong><br>
+            Remaining Load: <span class="highlight">${count.toLocaleString()} CFU/g</span><br>
+            Kill Rate <span class="highlight">|f'(${t})|</span>: <span class="highlight">${parseFloat(rate).toLocaleString()} bacteria/min</span><br>
+            <p style="margin-top:10px; color: #555;">🔬 <em>${layman}</em></p>
+        `;
+        panel.style.backgroundColor = "#e3f2fd";
+    }
+</script>
+
+</body>
+</html>
